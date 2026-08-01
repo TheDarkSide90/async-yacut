@@ -47,7 +47,7 @@ def add_link():
         {
             'url': urlmap.original,
             'short_link': url_for(
-                'redirect_view',
+                redirect_view,
                 short=urlmap.short,
                 _external=True
             )
