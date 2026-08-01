@@ -1,6 +1,8 @@
 import os
 import aiohttp
 import urllib
+from uuid import uuid4
+from pathlib import Path
 from dotenv import load_dotenv
 
 import settings
@@ -16,20 +18,22 @@ AUTH_HEADERS = {
 
 async def get_upload_url(filename):
     async with aiohttp.ClientSession(headers=AUTH_HEADERS) as session:
+        suffix = Path(filename).suffix
+        disk_path = f"app:/{uuid4().hex}{suffix}"
         async with session.get(
             settings.REQUEST_UPLOAD_URL,
             params={
-                "path": f"app: /{filename}",
+                "path": disk_path,
                 "overwrite": "true"
             }
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            return data["href"]
+            return data["href"], disk_path
 
 
 async def upload_file(file, filename):
-    upload_url = await get_upload_url(filename)
+    upload_url, disk_path = await get_upload_url(filename)
 
     file.stream.seek(0)
     file_data = file.stream.read()
@@ -40,10 +44,7 @@ async def upload_file(file, filename):
             data=file_data
         ) as response:
             response.raise_for_status()
-            location = response.headers['Location']
-            location = urllib.parse.unquote(location)
-            location = location.replace('/disk', '')
-            return location
+            return disk_path
 
 
 async def get_download_link(path):

@@ -1,11 +1,12 @@
 import re
 
-from flask import jsonify, request
+from flask import jsonify, request, url_for
+from http import HTTPStatus
 
 from . import app, db
 from .error_handlers import InvalidAPIUsage
 from .models import URLMap
-from .views import get_unique_short_id
+from .views import get_unique_short_id, redirect_view
 from .constants import CUSTOM_ID_MAX_LENGTH, REGEX
 
 
@@ -43,13 +44,20 @@ def add_link():
     db.session.add(urlmap)
     db.session.commit()
     return jsonify(
-        {'url': urlmap.original, 'short_link': request.host_url + urlmap.short}
-    ), 201
+        {
+            'url': urlmap.original,
+            'short_link': url_for(
+                'redirect_view',
+                short=urlmap.short,
+                _external=True
+            )
+        }
+    ), HTTPStatus.CREATED
 
 
 @app.route('/api/id/<short_id>/', methods=['GET'])
 def get_original_link(short_id):
     urlmap = URLMap.query.filter_by(short=short_id).first()
     if urlmap is None:
-        raise InvalidAPIUsage('Указанный id не найден', 404)
+        raise InvalidAPIUsage('Указанный id не найден', HTTPStatus.NOT_FOUND)
     return jsonify({'url': urlmap.original})
